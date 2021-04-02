@@ -941,6 +941,8 @@ BinUtil::LM::readSymbolTables()
 void
 BinUtil::LM::readSegs()
 {
+  DIAG_MsgIf(true, "Begin analyzing : " << this->m_name);
+
   // Create sections.
   // Pass symbol table and debug summary information for each section
   // into that section as it is created.
