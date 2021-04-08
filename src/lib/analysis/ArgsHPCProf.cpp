@@ -495,6 +495,16 @@ ArgsHPCProf::parse(int argc, const char* const argv[], AppType type)
       if (is_directory(data_flow_dir)) {
         find_files(dataFlowFiles, data_flow_dir, ".dot");
       }
+
+      const std::string redundancy_dir = profileFiles[i] + "/redundancy";
+      if (is_directory(redundancy_dir)) {
+        find_files(redundancyFiles, redundancy_dir, ".csv");
+      }
+
+      const std::string value_pattern_dir = profileFiles[i] + "/value_pattern";
+      if (is_directory(value_pattern_dir)) {
+        find_files(valuePatternFiles, value_pattern_dir, ".csv");
+      }
     }
 
     // For now, parse first file name to determine name of database

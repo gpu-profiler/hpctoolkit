@@ -140,9 +140,12 @@ public:
   // Profile files
   std::vector<std::string> profileFiles;
   
-  // DataFlow files
+  // Value pattern files
+ 
   // XXX(Keren): one process only
   std::vector<std::string> dataFlowFiles;
+  std::vector<std::string> redundancyFiles;
+  std::vector<std::string> valuePatternFiles;
 
   bool doNormalizeTy;
 
