@@ -201,6 +201,14 @@ typedef struct {
   pthread_cond_t cond;
 } sanitizer_thread_t;
 
+typedef struct {
+  bool flag;
+  int32_t persistent_id;
+  uint64_t correlation_id;
+  uint64_t start;
+  uint64_t end;
+} sanitizer_memory_register_delegate_t;
+
 // only subscribed by the main thread
 static Sanitizer_SubscriberHandle sanitizer_subscriber_handle;
 // Single background process thread, can be extended
@@ -231,10 +239,14 @@ static bool sanitizer_read_trace_ignore = false;
 static bool sanitizer_data_flow_hash = false;
 
 static __thread bool sanitizer_stop_flag = false;
+static __thread bool sanitizer_context_creation_flag = false;
 static __thread uint32_t sanitizer_thread_id_self = (1 << 30);
 static __thread uint32_t sanitizer_thread_id_local = 0;
 static __thread CUcontext sanitizer_thread_context = NULL;
 
+static __thread sanitizer_memory_register_delegate_t sanitizer_memory_register_delegate = {
+  .flag = false
+};
 
 // Host buffers are per-thread
 static __thread gpu_patch_buffer_t *sanitizer_gpu_patch_buffer_host = NULL;
@@ -1467,8 +1479,27 @@ sanitizer_subscribe_callback
           PRINT("Sanitizer-> Stream destroy starting\n");
           break;
         }
+      case SANITIZER_CBID_RESOURCE_CONTEXT_CREATION_STARTING:
+        {
+          PRINT("Sanitizer-> Context creation starting\n");
+	  
+	  sanitizer_context_creation_flag = true;
+          break;
+        }
       case SANITIZER_CBID_RESOURCE_CONTEXT_CREATION_FINISHED:
         {
+          PRINT("Sanitizer-> Context creation finished\n");
+	  
+	  sanitizer_context_creation_flag = false;
+
+          if (sanitizer_memory_register_delegate.flag) {
+            redshow_memory_register(
+              sanitizer_memory_register_delegate.persistent_id,
+              sanitizer_memory_register_delegate.correlation_id,
+              sanitizer_memory_register_delegate.start,
+              sanitizer_memory_register_delegate.end);
+            sanitizer_memory_register_delegate.flag = false;
+          }
           break;
         }
       case SANITIZER_CBID_RESOURCE_CONTEXT_DESTROY_STARTING:
@@ -1515,7 +1546,22 @@ sanitizer_subscribe_callback
           hpcrun_safe_exit();
 
           int32_t persistent_id = hpcrun_cct_persistent_id(api_node);
-          redshow_memory_register(persistent_id, correlation_id, md->address, md->address + md->size);
+
+          if (sanitizer_context_creation_flag) {
+            // For some driver versions, the primary context is not fully initialized here.
+	    // So we have to delay memory register to the point when context initialization is done.
+	    //
+	    // CUDA context is often initalized lazily.
+	    // The primary context is only initialized when seeing cudaDeviceReset or the first CUDA
+	    // runtime API (e.g., cudaMemalloc).
+            sanitizer_memory_register_delegate.flag = true;
+            sanitizer_memory_register_delegate.persistent_id = persistent_id;
+            sanitizer_memory_register_delegate.correlation_id = correlation_id;
+            sanitizer_memory_register_delegate.start = md->address;
+            sanitizer_memory_register_delegate.end = md->address + md->size;
+          } else {
+            redshow_memory_register(persistent_id, correlation_id, md->address, md->address + md->size);
+          }
 
           PRINT("Sanitizer-> Allocate memory address %p, size %zu, op %lu, id %d\n",
             (void *)md->address, md->size, correlation_id, persistent_id);
