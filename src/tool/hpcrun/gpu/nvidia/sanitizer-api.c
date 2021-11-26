@@ -1038,6 +1038,23 @@ sanitizer_kernel_stream_get
 
 
 static void
+sanitizer_module_load
+(
+ CUcontext context
+)
+{
+  CUmodule analysis_module = NULL;
+  CUfunction analysis_function = NULL;
+  cuda_module_load(&analysis_module, HPCTOOLKIT_GPU_PATCH "gpu-analysis.fatbin");
+  cuda_module_function_get(&analysis_function, analysis_module, "gpu_analysis_interval_merge");
+  
+  sanitizer_context_map_analysis_function_update(context, analysis_function);
+  
+  PRINT("Sanitizer-> context %p load function gpu_analysis_interval_merge %p\n", context, analysis_function);
+}
+
+
+static void
 sanitizer_kernel_launch
 (
  CUcontext context
@@ -1051,13 +1068,7 @@ sanitizer_kernel_launch
 
   // First time get function
   if (analysis_function == NULL) {
-    CUmodule analysis_module = NULL;
-    cuda_module_load(&analysis_module, HPCTOOLKIT_GPU_PATCH "gpu-analysis.fatbin");
-    cuda_module_function_get(&analysis_function, analysis_module, "gpu_analysis_interval_merge");
-
-    sanitizer_context_map_analysis_function_update(context, analysis_function);
-
-    PRINT("Sanitizer-> context %p load function gpu_analysis_interval_merge %p\n", context, analysis_function);
+    sanitizer_module_load(context);
   }
 
   // Launch analysis function
@@ -1491,6 +1502,9 @@ sanitizer_subscribe_callback
           PRINT("Sanitizer-> Context creation finished\n");
 	  
 	  sanitizer_context_creation_flag = false;
+	  sanitizer_priority_stream_get(sanitizer_thread_context);
+	  sanitizer_kernel_stream_get(sanitizer_thread_context);
+	  sanitizer_module_load(sanitizer_thread_context);
 
           if (sanitizer_memory_register_delegate.flag) {
             redshow_memory_register(
