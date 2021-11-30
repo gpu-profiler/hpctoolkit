@@ -320,6 +320,17 @@ CUDA_FN
  );
 );
 
+
+CUDA_FN
+(
+ cuMemHostAlloc,
+ (
+  void** pp,
+  size_t bytesize,
+  unsigned int Flags
+ );
+);
+
 #endif
 
 
@@ -365,6 +376,8 @@ cuda_bind
   CHK_DLSYM(cuda, cuLaunchKernel);
 
   CHK_DLSYM(cuda, cuFuncSetAttribute);
+
+  CHK_DLSYM(cuda, cuMemHostAlloc);
 
   return 0;
 #else
@@ -664,6 +677,23 @@ cuda_context_set
 #endif
 }
 
+
+int
+cuda_host_alloc
+(
+ void** pHost,
+ size_t size
+)
+{
+#ifndef HPCRUN_STATIC_LINK
+  cuda_internal = true;
+  HPCRUN_CUDA_API_CALL(cuMemHostAlloc, (pHost, size, CU_MEMHOSTALLOC_PORTABLE));
+  cuda_internal = false;
+  return 0;
+#else
+  return -1;
+#endif
+}
 
 int
 cuda_device_property_query

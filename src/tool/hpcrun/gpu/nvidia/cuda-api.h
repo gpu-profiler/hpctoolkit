@@ -170,6 +170,13 @@ cuda_context_set
 );
 
 
+int
+cuda_host_alloc
+(
+ void** pHost,
+ size_t size
+);
+
 // returns 0 on success
 int 
 cuda_device_property_query
