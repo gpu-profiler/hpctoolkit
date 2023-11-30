@@ -511,7 +511,7 @@ getStatement(StatementVector & svec, Offset vma, SymtabAPI::Function * sym_func)
   // else look for other modules
   if (svec.empty()) {
     set <Module *> modSet;
-    the_symtab->findModuleByOffset(modSet, vma);
+    the_symtab->findModuleByOffset(vma);
 
     for (auto mit = modSet.begin(); mit != modSet.end(); ++mit) {
       (*mit)->getSourceLines(svec, vma + cubin_size);
